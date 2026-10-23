@@ -1041,6 +1041,58 @@ class Musica {
 }
  
 // ===== Game =====
+
+/* Cenário pixel-art adicional: detalhes decorativos em coordenadas do mundo.
+   Não altera colisões, física, itens ou controles. */
+function desenharDetalhesPixel(c, L, cam, tempo) {
+  const tile = T, inicio = Math.max(0, Math.floor(cam / tile) - 1);
+  const fim = Math.min(L.cols - 1, Math.ceil((cam + W) / tile) + 1);
+  for (let x = inicio; x <= fim; x++) {
+    const bio = L.biomaEm(x), nome = (bio && bio.nome || "Floresta").toLowerCase();
+    const baseY = 13 * tile;
+    const seed = (x * 9301 + 49297) % 233;
+    const px = x * tile;
+    // Costura luminosa na borda dos blocos de terra.
+    if (L.g && L.g[13] && L.g[13][x] === "#") {
+      c.fillStyle = nome.includes("deserto") ? "#e9c66c" : nome.includes("montanha") ? "#9ca9a5" : nome.includes("rio") ? "#79d7b9" : "#79c85a";
+      c.fillRect(px + 1, baseY, tile - 2, 3);
+      c.fillStyle = "rgba(14,25,22,.28)";
+      c.fillRect(px + 3, baseY + 7, 4, 3); c.fillRect(px + 19, baseY + 15, 7, 3);
+    }
+    if (seed % 5 === 0 && L.g && L.g[13] && L.g[13][x] === "#") {
+      if (nome.includes("deserto")) {
+        c.fillStyle = "#b47b3d"; c.fillRect(px + 7, baseY - 7, 4, 7); c.fillRect(px + 4, baseY - 7, 3, 3);
+        c.fillStyle = "#e6bb68"; c.fillRect(px + 8, baseY - 10, 3, 4);
+      } else if (nome.includes("montanha")) {
+        c.fillStyle = "#697c7c"; c.fillRect(px + 8, baseY - 6, 13, 6); c.fillRect(px + 12, baseY - 10, 7, 4);
+        c.fillStyle = "#b7c6c4"; c.fillRect(px + 12, baseY - 9, 4, 2);
+      } else if (nome.includes("rio")) {
+        c.fillStyle = "#286d52"; c.fillRect(px + 7, baseY - 10, 3, 10); c.fillRect(px + 4, baseY - 7, 9, 3);
+        c.fillStyle = "#62b86d"; c.fillRect(px + 3, baseY - 10, 5, 3); c.fillRect(px + 10, baseY - 5, 5, 3);
+      } else {
+        c.fillStyle = "#4c9a43"; c.fillRect(px + 6, baseY - 9, 4, 9); c.fillRect(px + 2, baseY - 7, 12, 4);
+        c.fillStyle = "#a7d95c"; c.fillRect(px + 3, baseY - 8, 5, 2);
+        if (seed % 10 === 0) { c.fillStyle = "#e7d7a0"; c.fillRect(px + 17, baseY - 5, 4, 5); c.fillStyle = "#d98bca"; c.fillRect(px + 16, baseY - 8, 6, 3); }
+      }
+    }
+    // Pequenos brilhos de exploração, em posições fixas que cintilam.
+    if (seed % 7 === 0 && !nome.includes("deserto")) {
+      const yy = 95 + (seed % 4) * 24;
+      c.globalAlpha = 0.35 + 0.45 * (0.5 + 0.5 * Math.sin(tempo * 3 + x));
+      c.fillStyle = nome.includes("rio") ? "#8ff5ff" : "#ffe98a";
+      c.fillRect(px + 9 + seed % 11, yy, 3, 3);
+      c.fillRect(px + 11 + seed % 11, yy - 2, 2, 2);
+      c.globalAlpha = 1;
+    }
+  }
+  // Vinheta sutil e faixas de luz dão profundidade sem esconder o jogo.
+  const luz = c.createLinearGradient(0, 0, 0, H);
+  luz.addColorStop(0, "rgba(255,246,190,.035)");
+  luz.addColorStop(.72, "rgba(12,24,17,0)");
+  luz.addColorStop(1, "rgba(7,17,12,.20)");
+  c.fillStyle = luz; c.fillRect(0, 0, W, H);
+}
+
 class Game {
   constructor(canvas) {
     this.ctx = canvas.getContext("2d"); this.input = new InputHandler(() => this.aoPressionar());
@@ -1389,7 +1441,7 @@ class Game {
     c.globalAlpha = 1 - t; a.fundo(c, cam, this.clock); if (b !== a) { c.globalAlpha = t; b.fundo(c, cam, this.clock); } c.globalAlpha = 1;
     const sh = this.shake * 24;
     c.save(); c.translate(-Math.round(cam) + (Math.random() - 0.5) * sh, (Math.random() - 0.5) * sh);
-    L.draw(c, cam, this.clock); this.totem.draw(c);
+    L.draw(c, cam, this.clock); desenharDetalhesPixel(c, L, cam, this.clock); this.totem.draw(c);
     this.chests.forEach(o => o.draw(c)); this.items.forEach(o => o.draw(c)); this.coinList.forEach(o => o.draw(c));
     this.enemies.forEach(o => o.draw(c)); p.draw(c); this.fx.forEach(o => o.draw(c));
     c.restore();
